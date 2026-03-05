@@ -1,0 +1,101 @@
+version: "3.8"
+
+# ============================================================
+#  Windows 11 on Docker - GitHub Codespaces
+#  ✅ Virtual GPU (VirtIO-VGA) - Bật blur/transparency effects
+#  Web UI: http://localhost:8006
+#  RDP:    localhost:3389
+# ============================================================
+
+services:
+
+  # ── Windows 11 Container ──────────────────────────────────
+  windows:
+    image: dockurr/windows:latest
+    container_name: windows11
+    restart: unless-stopped
+
+    environment:
+      # ── Phiên bản Windows ─────────────────────────────────
+      VERSION: "11"
+      # VERSION: "11e"        # Windows 11 Enterprise
+
+      # ── Cấu hình phần cứng ảo ─────────────────────────────
+      RAM_SIZE: "4G"
+      CPU_CORES: "2"
+      DISK_SIZE: "64G"
+
+      # ── Hiển thị & Ngôn ngữ ───────────────────────────────
+      LANGUAGE: "Vietnamese"
+      KEYBOARD: "vi-VN"
+      REGION: "Asia/Ho_Chi_Minh"
+      EDITION: "Pro"
+
+      # ── Mạng & TPM ────────────────────────────────────────
+      NETWORK: "USER"
+      TPM: "Y"
+
+      # ── Tài khoản ─────────────────────────────────────────
+      USERNAME: "Admin"
+      PASSWORD: "Windows11@2024"
+      UNATTENDED: "Y"
+
+      # ── 🎮 Virtual GPU (VirtIO-VGA) ───────────────────────
+      # virtio-vga: Card GPU ảo paravirtualized (128MB VRAM)
+      # egl-headless + gl=on: Dùng OpenGL acceleration qua EGL
+      # Nếu host có GPU thật → VirGL acceleration tự động bật
+      # Nếu không có GPU thật → LLVMpipe (đủ để bật blur!)
+      ARGUMENTS: "-device virtio-vga,vram_size=134217728 -display egl-headless,gl=on"
+
+    devices:
+      - /dev/kvm
+      - /dev/net/tun
+      # Bỏ comment dòng dưới nếu host có GPU (Intel/AMD/NVIDIA):
+      # - /dev/dri/renderD128
+
+    cap_add:
+      - NET_ADMIN
+
+    ports:
+      - "8006:8006"
+      - "3389:3389"
+      - "3389:3389/udp"
+
+    volumes:
+      - windows-data:/storage
+      - ./shared:/shared:rw
+      - ./oem:/oem:ro         # Script OEM: cài driver + bật blur
+
+    stop_grace_period: 2m
+
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8006"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 5m
+
+    security_opt:
+      - seccomp:unconfined
+
+  # ── Dev Container ─────────────────────────────────────────
+  devcontainer:
+    image: mcr.microsoft.com/devcontainers/base:ubuntu-22.04
+    container_name: devenv
+    command: sleep infinity
+    volumes:
+      - .:/workspace:cached
+    depends_on:
+      - windows
+    environment:
+      - WINDOWS_HOST=windows
+      - WINDOWS_WEB_PORT=8006
+      - WINDOWS_RDP_PORT=3389
+
+volumes:
+  windows-data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge

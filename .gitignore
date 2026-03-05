@@ -1,0 +1,15 @@
+# Windows data volumes
+shared/
+*.img
+*.qcow2
+*.vmdk
+
+# Docker
+.docker/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
